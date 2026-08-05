@@ -1,0 +1,17 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { PsychologistVerifyController } from './psychologist-verify.controller';
+import { PsychologistVerifyService } from './psychologist-verify.service';
+import { PsychologistProfile } from './entities/psychologist-profile.entity';
+import { ProfilesModule } from '../profiles/profiles.module';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([PsychologistProfile]), ProfilesModule],
+  controllers: [PsychologistVerifyController],
+  providers: [PsychologistVerifyService],
+  exports: [PsychologistVerifyService],
+})
+export class PsychologistVerifyModule {}
+
+
+
