@@ -1,0 +1,100 @@
+/**
+ * Returns a unique, deterministic image URL for each event.
+ * Keys match the actual category values from the API (English keys).
+ */
+
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  hamneshin: [
+    "companion,cafe,tea,chat",
+    "meeting,friends,cozy",
+    "gathering,dinner,warm",
+  ],
+  hambazi: [
+    "boardgame,fun,friends",
+    "puzzle,tabletop,dice",
+    "strategy,play,group",
+  ],
+  hamsohbat: [
+    "conversation,talk,deep",
+    "dialogue,listen,share",
+    "chat,coffee,heart",
+  ],
+  hamfekr: [
+    "brainstorm,idea,creative",
+    "startup,innovation,think",
+    "whiteboard,plan,vision",
+  ],
+  hamkar: [
+    "coworking,laptop,team",
+    "office,collaboration,work",
+    "project,meeting,business",
+  ],
+  hamteymi: [
+    "sports,team,exercise",
+    "football,match,field",
+    "volleyball,competition,active",
+  ],
+  hampa: [
+    "hiking,nature,walk",
+    "mountain,trail,outdoor",
+    "park,green,adventure",
+  ],
+  hamamooz: [
+    "workshop,learn,class",
+    "education,paint,skill",
+    "teacher,student,book",
+  ],
+  hamghesse: [
+    "book,story,reading",
+    "library,literature,novel",
+    "write,pen,journal",
+  ],
+  hamziste: [
+    "therapy,group,support",
+    "wellness,healing,circle",
+    "mentalhealth,peace,together",
+  ],
+  hamrovan: [
+    "psychologist,counseling,session",
+    "therapy,couch,office",
+    "mental,professional,care",
+  ],
+};
+
+function getNumericId(event: { id?: any }): number {
+  if (!event.id) return 1;
+  if (typeof event.id === "number") return event.id;
+  const str = String(event.id);
+  const digits = str.replace(/\D/g, "");
+  if (digits) return parseInt(digits, 10);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) || 1;
+}
+
+export function getEventImage(
+  event: { image_url?: string | null; category?: string; id?: any; title?: string },
+  index?: number
+): string {
+  if (
+    event.image_url &&
+    !event.image_url.startsWith("emoji:") &&
+    event.image_url.startsWith("http")
+  ) {
+    return event.image_url;
+  }
+
+  const numericId = getNumericId(event);
+  const cat = event.category || "";
+  const keywordSets = CATEGORY_KEYWORDS[cat];
+  const keywords = keywordSets
+    ? keywordSets[numericId % keywordSets.length]
+    : "event,people,together";
+
+  const sets = CATEGORY_KEYWORDS[cat] || ["social,people,together"];
+  const numId = getNumericId(event);
+  const kw = sets[numId % sets.length];
+  return `https://loremflickr.com/600/340/${kw.split(",")[0]}?lock=${numId}`;
+}

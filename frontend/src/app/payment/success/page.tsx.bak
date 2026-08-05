@@ -1,0 +1,78 @@
+"use client";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { CheckCircle2, Calendar, MessageCircle } from "lucide-react";
+
+function SuccessContent() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const refId = params.get("refId") || "";
+  const [count, setCount] = useState(8);
+
+  useEffect(()=>{
+    const t=setInterval(()=>{
+      setCount(c=>{
+        if(c<=1){clearInterval(t);router.push("/dashboard/my-therapist/ham-ravan");return 0;}
+        return c-1;
+      });
+    },1000);
+    return()=>clearInterval(t);
+  },[]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4"
+      style={{background:"linear-gradient(135deg,#0f172a,#1B2A4A)"}}>
+      <div className="max-w-sm w-full rounded-3xl p-8 text-center"
+        style={{background:"rgba(255,255,255,0.05)",
+          border:"1px solid rgba(255,107,0,0.3)",backdropFilter:"blur(20px)"}}>
+
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
+          style={{background:"rgba(34,197,94,0.15)",border:"2px solid rgba(34,197,94,0.4)"}}>
+          <CheckCircle2 size={40} className="text-green-400"/>
+        </div>
+
+        <h1 className="text-xl font-black text-white mb-2">پرداخت موفق ✅</h1>
+        <p className="text-slate-400 text-sm mb-5">رزرو همنشینی شما ثبت شد</p>
+
+        {refId&&(
+          <div className="rounded-2xl p-4 mb-5"
+            style={{background:"rgba(255,107,0,0.08)",border:"1px solid rgba(255,107,0,0.2)"}}>
+            <p className="text-xs text-slate-400 mb-1">کد پیگیری</p>
+            <p className="font-black text-orange-400 text-xl">{refId}</p>
+          </div>
+        )}
+
+        <div className="space-y-3 mb-5">
+          <a href="https://ble.ir/raavii" target="_blank" rel="noreferrer"
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-black text-sm text-white"
+            style={{background:"linear-gradient(135deg,#1A73E8,#0d47a1)"}}>
+            <MessageCircle size={18}/>
+            ربات بله راوی
+          </a>
+          <a href="https://t.me/raaviibot" target="_blank" rel="noreferrer"
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-black text-sm text-white"
+            style={{background:"linear-gradient(135deg,#0088cc,#006699)"}}>
+            <MessageCircle size={18}/>
+            ربات تلگرام راوی
+          </a>
+          <button onClick={()=>router.push("/dashboard/my-therapist/ham-ravan")}
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-black text-sm text-white"
+            style={{background:"linear-gradient(135deg,#FF6B00,#f97316)"}}>
+            <Calendar size={18}/>
+            صفحه همنشینی‌ها
+          </button>
+        </div>
+
+        <p className="text-xs text-slate-500">{count} ثانیه دیگر خودکار منتقل میشید</p>
+      </div>
+    </div>
+  );
+}
+
+export default function PaymentSuccess() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" style={{background:"#0f172a"}}/>}>
+      <SuccessContent/>
+    </Suspense>
+  );
+}

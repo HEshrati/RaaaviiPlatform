@@ -1,0 +1,623 @@
+export type AnswerScale =
+  | "likert5"
+  | "likert7"
+  | "frequency4"
+  | "yesno"
+  | "paired";
+
+export interface Option {
+  value: number;
+  label: string;
+}
+
+export interface Question {
+  id: number;
+  text: string;
+  reverse?: boolean;
+  subscale?: string;
+}
+
+export interface TestDef {
+  id: string;
+  name: string;
+  shortName: string;
+  phase: 1 | 2 | 3;
+  category: string;
+  description: string;
+  estimatedMinutes: number;
+  scale: AnswerScale;
+  options: Option[];
+  questions: Question[];
+  scoring: {
+    subscales?: { key: string; label: string; ids: number[] }[];
+    ranges: {
+      min: number;
+      max: number;
+      label: string;
+      color: string;
+      description: string;
+    }[];
+  };
+  matchingWeight: number; // 0-10
+}
+
+const LIKERT5: Option[] = [
+  { value: 1, label: "کاملاً مخالفم" },
+  { value: 2, label: "مخالفم" },
+  { value: 3, label: "نظری ندارم" },
+  { value: 4, label: "موافقم" },
+  { value: 5, label: "کاملاً موافقم" },
+];
+
+const AGREE7: Option[] = [
+  { value: 1, label: "کاملاً مخالفم" },
+  { value: 2, label: "بیشتر مخالفم" },
+  { value: 3, label: "تا حدی مخالفم" },
+  { value: 4, label: "نظری ندارم" },
+  { value: 5, label: "تا حدی موافقم" },
+  { value: 6, label: "بیشتر موافقم" },
+  { value: 7, label: "کاملاً موافقم" },
+];
+
+const FREQ4: Option[] = [
+  { value: 1, label: "هرگز" },
+  { value: 2, label: "به‌ندرت" },
+  { value: 3, label: "گاهی" },
+  { value: 4, label: "اغلب" },
+];
+
+export function scoreAnswer(
+  value: number,
+  reverse: boolean,
+  scale: AnswerScale,
+): number {
+  if (!reverse) return value;
+
+  switch (scale) {
+    case "likert5":
+      return 6 - value;
+    case "likert7":
+      return 8 - value;
+    case "frequency4":
+      return 5 - value;
+    case "yesno":
+      return value === 1 ? 2 : 1;
+    case "paired":
+      return value;
+    default:
+      return value;
+  }
+}
+
+export function calculateTotalScore(
+  answers: Record<number, number>,
+  questions: Question[],
+  scale: AnswerScale,
+): number {
+  return questions.reduce((sum, q) => {
+    const raw = answers[q.id];
+    if (typeof raw !== "number") return sum;
+    return sum + scoreAnswer(raw, !!q.reverse, scale);
+  }, 0);
+}
+
+const NEO_FFI: TestDef = {
+  id: "neo_ffi",
+  name: "پرسشنامه پنج عامل بزرگ شخصیت (NEO-FFI)",
+  shortName: "NEO",
+  phase: 1,
+  category: "شخصیت",
+  description: "این پرسشنامه پنج بُعد اصلی شخصیت شما را اندازه می‌گیرد.",
+  estimatedMinutes: 10,
+  scale: "likert5",
+  options: LIKERT5,
+  questions: [
+    { id: 1, text: "دوست دارم در مرکز توجه باشم.", subscale: "E" },
+    { id: 2, text: "در جمع‌های شلوغ انرژی می‌گیرم.", subscale: "E" },
+    { id: 3, text: "به‌راحتی با غریبه‌ها صحبت می‌کنم.", subscale: "E" },
+    {
+      id: 4,
+      text: "ترجیح می‌دهم تنها باشم تا در جمع.",
+      subscale: "E",
+      reverse: true,
+    },
+    { id: 5, text: "پرانرژی و پرشور هستم.", subscale: "E" },
+    {
+      id: 6,
+      text: "به‌ندرت خودم را ابراز می‌کنم.",
+      subscale: "E",
+      reverse: true,
+    },
+
+    { id: 7, text: "نگران احساسات دیگران هستم.", subscale: "A" },
+    { id: 8, text: "به مردم اعتماد می‌کنم.", subscale: "A" },
+    { id: 9, text: "برای کمک به دیگران وقتم را می‌گذارم.", subscale: "A" },
+    {
+      id: 10,
+      text: "گاهی رفتار دیگران را تند یا تحریک‌آمیز می‌یابم.",
+      subscale: "A",
+      reverse: true,
+    },
+    { id: 11, text: "ترجیح می‌دهم همکاری کنم تا رقابت.", subscale: "A" },
+    {
+      id: 12,
+      text: "اختلاف نظر را صادقانه بیان می‌کنم حتی اگر ناراحت کند.",
+      subscale: "A",
+      reverse: true,
+    },
+
+    {
+      id: 13,
+      text: "همیشه برنامه‌ریزی می‌کنم و به آن پایبند هستم.",
+      subscale: "C",
+    },
+    { id: 14, text: "کارها را به موقع تحویل می‌دهم.", subscale: "C" },
+    { id: 15, text: "جزئیات برایم مهم است.", subscale: "C" },
+    {
+      id: 16,
+      text: "گاهی بی‌نظم یا آشفته هستم.",
+      subscale: "C",
+      reverse: true,
+    },
+    { id: 17, text: "برای رسیدن به هدف سخت تلاش می‌کنم.", subscale: "C" },
+    {
+      id: 18,
+      text: "تمایل دارم کارها را به بعد موکول کنم.",
+      subscale: "C",
+      reverse: true,
+    },
+
+    { id: 19, text: "اغلب احساس نگرانی یا تنش می‌کنم.", subscale: "N" },
+    {
+      id: 20,
+      text: "خلق‌وخویم ثابت و آرام است.",
+      subscale: "N",
+      reverse: true,
+    },
+    {
+      id: 21,
+      text: "در موقعیت‌های سخت به‌راحتی دچار استرس می‌شوم.",
+      subscale: "N",
+    },
+    {
+      id: 22,
+      text: "به ندرت احساس غم یا بی‌حوصلگی می‌کنم.",
+      subscale: "N",
+      reverse: true,
+    },
+    { id: 23, text: "از انتقاد یا طرد شدن خیلی ناراحت می‌شوم.", subscale: "N" },
+    {
+      id: 24,
+      text: "زیر فشار آرامشم را حفظ می‌کنم.",
+      subscale: "N",
+      reverse: true,
+    },
+
+    {
+      id: 25,
+      text: "کنجکاو هستم و دوست دارم چیزهای جدید یاد بگیرم.",
+      subscale: "O",
+    },
+    { id: 26, text: "از هنر، موسیقی یا ادبیات لذت می‌برم.", subscale: "O" },
+    {
+      id: 27,
+      text: "دوست دارم درباره فلسفه و مفاهیم انتزاعی فکر کنم.",
+      subscale: "O",
+    },
+    {
+      id: 28,
+      text: "روال‌های ثابت و آشنا را ترجیح می‌دهم.",
+      subscale: "O",
+      reverse: true,
+    },
+    { id: 29, text: "تجربه‌های جدید و متفاوت را می‌پذیرم.", subscale: "O" },
+    {
+      id: 30,
+      text: "ترجیح می‌دهم راه‌حل‌های آزموده‌شده را بکار ببرم.",
+      subscale: "O",
+      reverse: true,
+    },
+  ],
+  scoring: {
+    subscales: [
+      { key: "E", label: "برون‌گرایی", ids: [1, 2, 3, 4, 5, 6] },
+      { key: "A", label: "توافق‌پذیری", ids: [7, 8, 9, 10, 11, 12] },
+      { key: "C", label: "وظیفه‌شناسی", ids: [13, 14, 15, 16, 17, 18] },
+      { key: "N", label: "روان‌رنجوری", ids: [19, 20, 21, 22, 23, 24] },
+      { key: "O", label: "گشودگی", ids: [25, 26, 27, 28, 29, 30] },
+    ],
+    ranges: [
+      {
+        min: 6,
+        max: 14,
+        label: "پایین",
+        color: "blue",
+        description: "این بُعد در شما ضعیف‌تر از میانگین است.",
+      },
+      {
+        min: 15,
+        max: 22,
+        label: "متوسط",
+        color: "orange",
+        description: "این بُعد در شما در حد میانگین قرار دارد.",
+      },
+      {
+        min: 23,
+        max: 30,
+        label: "بالا",
+        color: "green",
+        description: "این بُعد در شما قوی‌تر از میانگین است.",
+      },
+    ],
+  },
+  matchingWeight: 10,
+};
+
+const ECR_R: TestDef = {
+  id: "ecr_r",
+  name: "مقیاس تجربه روابط نزدیک (ECR-R)",
+  shortName: "دلبستگی",
+  phase: 1,
+  category: "رابطه",
+  description: "سبک دلبستگی شما در روابط عاطفی را می‌سنجد.",
+  estimatedMinutes: 7,
+  scale: "likert7",
+  options: AGREE7,
+  questions: [
+    {
+      id: 1,
+      text: "نگران این هستم که شریکم واقعاً مرا دوست ندارد.",
+      subscale: "ANX",
+    },
+    { id: 2, text: "خیلی نگرانم که رابطه‌ام به پایان برسد.", subscale: "ANX" },
+    {
+      id: 3,
+      text: "نیاز دارم مطمئن شوم برای طرف مقابلم مهم هستم.",
+      subscale: "ANX",
+    },
+    {
+      id: 4,
+      text: "نسبت به علاقه‌مندی شریکم به خودم تردید دارم.",
+      subscale: "ANX",
+    },
+    { id: 5, text: "از اینکه تنها بمانم می‌ترسم.", subscale: "ANX" },
+    {
+      id: 6,
+      text: "اگر رابطه‌ام سرد شود، خیلی آشفته می‌شوم.",
+      subscale: "ANX",
+    },
+    { id: 7, text: "نگرانم که دیگران مرا ترک کنند.", subscale: "ANX" },
+    {
+      id: 8,
+      text: "اغلب نیاز دارم علاقه‌ی طرف مقابلم را دوباره تأیید کنم.",
+      subscale: "ANX",
+    },
+    {
+      id: 9,
+      text: "نگران این هستم که به‌اندازه کافی خوب نباشم.",
+      subscale: "ANX",
+    },
+
+    {
+      id: 10,
+      text: "ترجیح می‌دهم احساساتم را با شریکم در میان نگذارم.",
+      subscale: "AVO",
+    },
+    { id: 11, text: "نزدیکی زیاد در رابطه مرا معذب می‌کند.", subscale: "AVO" },
+    { id: 12, text: "از وابستگی عاطفی زیاد خوشم نمی‌آید.", subscale: "AVO" },
+    {
+      id: 13,
+      text: "احساس می‌کنم بهتر است مسائل شخصی را برای خودم نگه دارم.",
+      subscale: "AVO",
+    },
+    {
+      id: 14,
+      text: "از مطرح کردن نیازهای عاطفی‌ام پرهیز می‌کنم.",
+      subscale: "AVO",
+    },
+    {
+      id: 15,
+      text: "وقتی کسی بیش از حد نزدیک می‌شود، عقب می‌کشم.",
+      subscale: "AVO",
+    },
+    {
+      id: 16,
+      text: "ترجیح می‌دهم مستقل بمانم تا درگیر صمیمیت شوم.",
+      subscale: "AVO",
+    },
+    { id: 17, text: "درباره‌ی احساساتم راحت صحبت نمی‌کنم.", subscale: "AVO" },
+    {
+      id: 18,
+      text: "با نزدیک شدن بیش از حد به دیگران ناراحت می‌شوم.",
+      subscale: "AVO",
+    },
+  ],
+  scoring: {
+    subscales: [
+      { key: "ANX", label: "اضطراب دلبستگی", ids: [1, 2, 3, 4, 5, 6, 7, 8, 9] },
+      {
+        key: "AVO",
+        label: "اجتناب دلبستگی",
+        ids: [10, 11, 12, 13, 14, 15, 16, 17, 18],
+      },
+    ],
+    ranges: [
+      {
+        min: 9,
+        max: 27,
+        label: "ایمن‌تر",
+        color: "green",
+        description: "احساس امنیت بیشتر در روابط",
+      },
+      {
+        min: 28,
+        max: 45,
+        label: "متوسط",
+        color: "orange",
+        description: "چالش‌هایی در دلبستگی وجود دارد",
+      },
+      {
+        min: 46,
+        max: 63,
+        label: "ناایمن‌تر",
+        color: "red",
+        description: "نیاز به کار روی سبک دلبستگی",
+      },
+    ],
+  },
+  matchingWeight: 10,
+};
+
+const GOTTMAN: TestDef = {
+  id: "gottman",
+  name: "مقیاس الگوهای ارتباطی گاتمن",
+  shortName: "الگوی رابطه",
+  phase: 1,
+  category: "رابطه",
+  description: "الگوهای ارتباطی شما در روابط نزدیک را ارزیابی می‌کند.",
+  estimatedMinutes: 6,
+  scale: "likert5",
+  options: LIKERT5,
+  questions: [
+    {
+      id: 1,
+      text: "وقتی کسی مرا ناراحت می‌کند، رفتارهای کلی او را هم زیر سؤال می‌برم.",
+      subscale: "criticism",
+    },
+    {
+      id: 2,
+      text: "در دعوا احساس می‌کنم شریکم شخصیتم را هدف می‌گیرد نه رفتارم.",
+      subscale: "criticism",
+    },
+    {
+      id: 3,
+      text: "در بحث تمایل دارم از خودم دفاع کنم قبل از اینکه حرف طرف مقابل تمام شود.",
+      subscale: "defensive",
+    },
+    {
+      id: 4,
+      text: "وقتی مخالفم، به‌سرعت دلایل خودم را مطرح می‌کنم.",
+      subscale: "defensive",
+    },
+    {
+      id: 5,
+      text: "گاهی در بحث‌ها احساس می‌کنم کاملاً قفل می‌کنم و چیزی نمی‌گویم.",
+      subscale: "stonewalling",
+    },
+    {
+      id: 6,
+      text: "وقتی مکالمه تنش‌زا می‌شود ترجیح می‌دهم سکوت کنم.",
+      subscale: "stonewalling",
+    },
+    {
+      id: 7,
+      text: "گاهی با نگاه یا لحن نشان می‌دهم که حرف طرف مقابل را جدی نمی‌گیرم.",
+      subscale: "contempt",
+    },
+    {
+      id: 8,
+      text: "وقتی از کسی ناراحتم، احساس می‌کنم از او برتر هستم.",
+      subscale: "contempt",
+    },
+    {
+      id: 9,
+      text: "سعی می‌کنم احساسات طرف مقابل را بفهمم قبل از واکنش.",
+      subscale: "empathy",
+    },
+    {
+      id: 10,
+      text: "در تعارض به دنبال راه‌حل مشترک هستم نه پیروزی.",
+      subscale: "empathy",
+    },
+    {
+      id: 11,
+      text: "می‌توانم بعد از دعوا آشتی کنم و ادامه بدهم.",
+      subscale: "repair",
+    },
+    {
+      id: 12,
+      text: "در روابطم احساس اعتماد و امنیت می‌کنم.",
+      subscale: "repair",
+    },
+  ],
+  scoring: {
+    subscales: [
+      { key: "criticism", label: "انتقاد", ids: [1, 2] },
+      { key: "defensive", label: "دفاعی بودن", ids: [3, 4] },
+      { key: "stonewalling", label: "سکوت/اجتناب", ids: [5, 6] },
+      { key: "contempt", label: "تحقیر", ids: [7, 8] },
+      { key: "empathy", label: "همدلی", ids: [9, 10] },
+      { key: "repair", label: "ترمیم رابطه", ids: [11, 12] },
+    ],
+    ranges: [
+      {
+        min: 0,
+        max: 20,
+        label: "الگوهای سالم",
+        color: "green",
+        description: "سبک ارتباطی سالم و سازنده",
+      },
+      {
+        min: 21,
+        max: 35,
+        label: "نیاز به توجه",
+        color: "orange",
+        description: "برخی الگوهای مخرب وجود دارد",
+      },
+      {
+        min: 36,
+        max: 60,
+        label: "الگوهای نگران‌کننده",
+        color: "red",
+        description: "الگوهای ارتباطی نیاز به کار دارند",
+      },
+    ],
+  },
+  matchingWeight: 9,
+};
+
+const MBTI_INSPIRED: TestDef = {
+  id: "mbti",
+  name: "تیپ‌شناسی شخصیت (MBTI)",
+  shortName: "تیپ شخصیتی",
+  phase: 1,
+  category: "شخصیت",
+  description:
+    "این ابزار یک سنجش الهام‌گرفته از MBTI است و جایگزین ابزارهای استاندارد روان‌سنجی نیست.",
+  estimatedMinutes: 8,
+  scale: "likert5",
+  options: LIKERT5,
+  questions: [
+    {
+      id: 1,
+      text: "بعد از یک جمع شلوغ معمولاً انرژی دارم و سرحال هستم.",
+      subscale: "E",
+    },
+    {
+      id: 2,
+      text: "ترجیح می‌دهم یک‌به‌یک صحبت کنم تا در گروه بزرگ.",
+      subscale: "I",
+    },
+    {
+      id: 3,
+      text: "افکارم را بلندبلند و با دیگران پردازش می‌کنم.",
+      subscale: "E",
+    },
+    {
+      id: 4,
+      text: "برای تصمیم‌گیری نیاز دارم اول تنها فکر کنم.",
+      subscale: "I",
+    },
+
+    {
+      id: 5,
+      text: "به جزئیات واقعی و ملموس بیشتر توجه می‌کنم.",
+      subscale: "S",
+    },
+    {
+      id: 6,
+      text: "بیشتر به الگوها و احتمالات آینده فکر می‌کنم.",
+      subscale: "N",
+    },
+    {
+      id: 7,
+      text: "وقتی اطلاعات می‌گیرم، مثال‌های عملی برایم مهم‌تر است.",
+      subscale: "S",
+    },
+    {
+      id: 8,
+      text: "ایده‌های کلی و مفهوم‌محور برایم جذاب‌ترند.",
+      subscale: "N",
+    },
+
+    {
+      id: 9,
+      text: "در تصمیم‌گیری منطق را بر احساس ترجیح می‌دهم.",
+      subscale: "T",
+    },
+    {
+      id: 10,
+      text: "برایم مهم است تصمیم‌ها با ارزش‌های انسانی هماهنگ باشند.",
+      subscale: "F",
+    },
+    {
+      id: 11,
+      text: "نقد مستقیم را ترجیح می‌دهم، حتی اگر تند باشد.",
+      subscale: "T",
+    },
+    {
+      id: 12,
+      text: "در تصمیم‌ها، اثر احساسی بر دیگران را هم در نظر می‌گیرم.",
+      subscale: "F",
+    },
+
+    { id: 13, text: "برنامه‌ریزی دقیق و نظم را دوست دارم.", subscale: "J" },
+    {
+      id: 14,
+      text: "انعطاف و باز گذاشتن گزینه‌ها برایم مهم است.",
+      subscale: "P",
+    },
+    { id: 15, text: "ترجیح می‌دهم کارها را زود تمام کنم.", subscale: "J" },
+    { id: 16, text: "از تغییر برنامه در لحظه ناراحت نمی‌شوم.", subscale: "P" },
+  ],
+  scoring: {
+    subscales: [
+      { key: "E", label: "برون‌گرایی", ids: [1, 3] },
+      { key: "I", label: "درون‌گرایی", ids: [2, 4] },
+      { key: "S", label: "حسی", ids: [5, 7] },
+      { key: "N", label: "شهودی", ids: [6, 8] },
+      { key: "T", label: "فکری", ids: [9, 11] },
+      { key: "F", label: "احساسی", ids: [10, 12] },
+      { key: "J", label: "قضاوت‌گر", ids: [13, 15] },
+      { key: "P", label: "ادراکی", ids: [14, 16] },
+    ],
+    ranges: [
+      {
+        min: 0,
+        max: 8,
+        label: "پایین",
+        color: "blue",
+        description: "گرایش ضعیف‌تر در این بُعد",
+      },
+      {
+        min: 9,
+        max: 12,
+        label: "متوسط",
+        color: "orange",
+        description: "گرایش متعادل در این بُعد",
+      },
+      {
+        min: 13,
+        max: 20,
+        label: "بالا",
+        color: "green",
+        description: "گرایش قوی‌تر در این بُعد",
+      },
+    ],
+  },
+  matchingWeight: 8,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Catalog Export
+// ═══════════════════════════════════════════════════════════════
+
+export const TESTS_CATALOG: TestDef[] = [
+  NEO_FFI,
+  ECR_R,
+  GOTT_MAN,
+  MBTI_INSPIRED,
+  HEXACO,
+];
+
+// lookup سریع بر اساس id
+export const TESTS_BY_ID: Record<string, TestDef> = Object.fromEntries(
+  TESTS_CATALOG.map((t) => [t.id, t]),
+);
+
+// تست‌ها بر اساس فاز
+export const TESTS_BY_PHASE: Record<number, TestDef[]> = {
+  1: TESTS_CATALOG.filter((t) => t.phase === 1),
+  2: TESTS_CATALOG.filter((t) => t.phase === 2),
+  3: TESTS_CATALOG.filter((t) => t.phase === 3),
+};

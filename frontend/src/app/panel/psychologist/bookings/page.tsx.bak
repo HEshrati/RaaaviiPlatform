@@ -1,0 +1,57 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Calendar, Video, MapPin, FileText } from "lucide-react";
+
+const API = process.env.NEXT_PUBLIC_API_URL || "https://raaviiplatform.com";
+
+export default function BookingsPage() {
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token") || "";
+    fetch(`${API}/api/psychologist-verify/my-bookings`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setBookings(Array.isArray(d) ? d : d?.data || []))
+      .catch(() => setBookings([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div>
+      <h1 className="text-white text-xl font-black mb-1">مراجعین من</h1>
+      <p className="text-slate-500 text-sm mb-6">لیست رزروهای ثبت‌شده برای شما</p>
+
+      {loading ? (
+        <p className="text-slate-400 text-sm">در حال بارگذاری...</p>
+      ) : bookings.length === 0 ? (
+        <p className="text-slate-500 text-sm">هنوز رزروی برای شما ثبت نشده است.</p>
+      ) : (
+        <div className="space-y-3">
+          {bookings.map((b: any) => (
+            <div key={b.id} className="p-4 rounded-2xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-white font-bold text-sm">{b.user_display_name || b.userName || "مراجع"}</span>
+                <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(16,185,129,0.15)", color: "#10b981" }}>
+                  {b.booking_status || b.status}
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-slate-400 text-xs">
+                <span className="flex items-center gap-1"><Calendar size={12} /> {b.start_datetime ? new Date(b.start_datetime).toLocaleString("fa-IR") : "-"}</span>
+                <span className="flex items-center gap-1">
+                  {b.session_type === "online" ? <Video size={12} /> : <MapPin size={12} />}
+                  {b.session_type === "online" ? "آنلاین" : "حضوری"}
+                </span>
+              </div>
+              {b.user_need_summary && (
+                <p className="text-slate-400 text-xs mt-2 flex items-start gap-1">
+                  <FileText size={12} className="mt-0.5" /> {b.user_need_summary}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

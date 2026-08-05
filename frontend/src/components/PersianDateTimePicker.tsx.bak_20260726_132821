@@ -1,0 +1,59 @@
+"use client";
+import DatePicker from "react-multi-date-picker";
+import DateObject from "react-date-object";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
+import gregorian from "react-date-object/calendars/gregorian";
+import gregorian_en from "react-date-object/locales/gregorian_en";
+import TimePicker from "react-multi-date-picker/plugins/time_picker";
+
+interface Props {
+  value: string;               // مقدار فعلی به‌صورت ISO (میلادی) یا رشته‌ی خالی
+  onChange: (iso: string) => void;
+  withTime?: boolean;          // اگه false باشه فقط تاریخ (بدون ساعت)
+  placeholder?: string;
+}
+
+// تبدیل رشته‌ی ISO به DateObject شمسی برای نمایش در کامپوننت
+function isoToPersianDate(value: string): DateObject | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return null;
+  return new DateObject({ date: d, calendar: gregorian }).convert(persian);
+}
+
+export default function PersianDateTimePicker({ value, onChange, withTime = true, placeholder }: Props) {
+  const selected = isoToPersianDate(value);
+
+  return (
+    <DatePicker
+      value={selected}
+      onChange={(date: DateObject | DateObject[] | null) => {
+        if (!date || Array.isArray(date)) { onChange(""); return; }
+        const g = date.convert(gregorian, gregorian_en);
+        const jsDate = g.toDate();
+        onChange(withTime ? jsDate.toISOString() : jsDate.toISOString().slice(0, 10));
+      }}
+      calendar={persian}
+      locale={persian_fa}
+      calendarPosition="bottom-right"
+      plugins={withTime ? [<TimePicker key="time" hideSeconds />] : []}
+      editable={false}
+      placeholder={placeholder || "انتخاب تاریخ" + (withTime ? " و ساعت" : "")}
+      inputClass="rmdp-raavi-input"
+      style={{
+        width: "100%",
+        boxSizing: "border-box",
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: "12px",
+        color: "white",
+        padding: "10px 12px",
+        fontSize: "14px",
+        fontFamily: "inherit",
+        textAlign: "right",
+      }}
+      containerStyle={{ width: "100%" }}
+    />
+  );
+}

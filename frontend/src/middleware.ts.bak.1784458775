@@ -1,0 +1,157 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { verifyJwtEdge } from "@/lib/jwt-verify-edge";
+import { safeRedirectPath } from "@/lib/safe-redirect";
+
+const PROTECTED_PATHS = [
+  "/role-select",
+  "/dashboard",
+  "/admin",
+  "/panel",
+  "/chat",
+  "/wallet",
+  "/notifications",
+  "/invite-friends",
+  "/support",
+  "/articles",
+  "/courses",
+  "/games",
+  "/explore",
+  "/events",
+];
+
+const TEST_EXEMPT_PATHS = [
+  "/role-select",
+  "/dashboard/tests/raavi_matching_basis_v1",
+  "/dashboard/personality-test",
+  "/dashboard/my-therapist",
+  "/dashboard/complete-profile",
+  "/login",
+  "/cafe",
+  "/admin",
+  "/panel",
+  "/events/category",
+];
+
+const ADMIN_PHONES = [
+  "09356815523",
+  "09929564895",
+  "09933830958",
+];
+
+function noCache(res: NextResponse): NextResponse {
+  res.headers.set("Cache-Control", "private, no-store, no-cache");
+  res.headers.set("CDN-Cache-Control", "no-store");
+  return res;
+}
+
+function isAdminPayload(payload: Record<string, unknown> | null): boolean {
+  if (!payload) return false;
+  if (payload.role === "admin" || payload.role === "super_admin") return true;
+  const phone = String(payload.mobileNumber || payload.phone || "")
+    .replace(/[\s\-+]/g, "")
+    .replace(/^98/, "0");
+  return ADMIN_PHONES.includes(phone);
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/uploads") ||
+    pathname.includes(".")
+  )
+    return NextResponse.next();
+
+  const token = request.cookies.get("token")?.value;
+  const jwtSecret = process.env.JWT_SECRET;
+
+  let payload: Record<string, unknown> | null = null;
+  if (token && jwtSecret) {
+    payload = await verifyJwtEdge(token, jwtSecret);
+  }
+
+  const isLoggedIn = !!payload;
+
+  const isProtected = PROTECTED_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+
+  if (!isLoggedIn && token) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    const res = NextResponse.redirect(loginUrl);
+    res.cookies.set("token", "", { path: "/", expires: new Date(0), maxAge: 0 });
+    return noCache(res);
+  }
+
+  if (!isLoggedIn && isProtected) {
+    const url = new URL("/login", request.url);
+    url.searchParams.set("redirect", pathname);
+    return noCache(NextResponse.redirect(url));
+  }
+
+  if (isLoggedIn && pathname === "/login") {
+    const loginRole = (payload?.role as string) ?? "";
+    const roleDefault = isAdminPayload(payload)
+      ? "/dashboard"
+      : loginRole === "psychologist" ? "/panel/psychologist"
+      : loginRole === "facilitator" ? "/panel/facilitator"
+      : (loginRole === "partner" || loginRole === "venue" || loginRole === "cafe") ? "/panel/partner"
+      : "/events";
+    const redirectTo = safeRedirectPath(
+      request.nextUrl.searchParams.get("redirect"),
+      roleDefault,
+    );
+    return noCache(NextResponse.redirect(new URL(redirectTo, request.url)));
+  }
+
+  if (pathname.startsWith("/admin")) {
+    if (!isLoggedIn || !isAdminPayload(payload)) {
+      return noCache(NextResponse.redirect(new URL("/dashboard", request.url)));
+    }
+  }
+
+  // نقش‌های حرفه‌ای معمولاً پنل اختصاصی دارند، اما ?user=1 باید امکان
+  // مشاهدهٔ داشبورد عادی را برای همهٔ نقش‌ها (از جمله ادمین) فراهم کند.
+  const wantsUserDashboard = request.nextUrl.searchParams.get("user") === "1";
+  const role = (payload?.role as string) ?? "";
+  const isProfessionalUserDashboard = wantsUserDashboard &&
+    (isAdminPayload(payload) || ["psychologist", "facilitator", "partner", "venue", "cafe"].includes(role));
+  if (isLoggedIn && !wantsUserDashboard && (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) && !isAdminPayload(payload)) {
+    const panelMap: Record<string, string> = { psychologist: "/panel/psychologist", facilitator: "/panel/facilitator", partner: "/panel/partner", venue: "/panel/partner" };
+    if (panelMap[role]) return noCache(NextResponse.redirect(new URL(panelMap[role], request.url)));
+  }
+
+  const isDashboard =
+    (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) &&
+    !pathname.startsWith("/panel");
+
+  if (isLoggedIn && isDashboard && !isProfessionalUserDashboard) {
+    const isExempt = TEST_EXEMPT_PATHS.some(
+      (p) => pathname === p || pathname.startsWith(p + "/"),
+    );
+
+    if (!isExempt) {
+      const mbtiDone =
+        request.cookies.get("mbti_done")?.value === "1" ||
+        payload?.isTestTaken === true;
+      if (!mbtiDone) {
+        const testUrl = new URL(
+          "/dashboard/tests/raavi_matching_basis_v1",
+          request.url,
+        );
+        testUrl.searchParams.set("required", "1");
+        return noCache(NextResponse.redirect(testUrl));
+      }
+    }
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};

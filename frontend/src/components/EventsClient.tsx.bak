@@ -1,0 +1,745 @@
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useApp } from "@/context/AppContext";
+import {
+  Search, MapPin, Clock, Lock, ChevronLeft,
+  Calendar, CheckCircle, ArrowLeft, Sparkles
+} from "lucide-react";
+import type { ApiEvent } from "@/lib/api";
+
+// ── SVG هم‌روان ──────────────────────────────────────────────────────
+function HamRavanIcon({ size = 48, color = "white" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+      {/* سر */}
+      <circle cx="24" cy="14" r="8" stroke={color} strokeWidth="1.8" fill="none"/>
+      {/* امواج مغز */}
+      <path d="M17 12 Q20 9 24 12 Q28 15 31 12" stroke={color} strokeWidth="1.6"
+        strokeLinecap="round" fill="none" opacity="0.7"/>
+      <path d="M18 16 Q21 13 24 16 Q27 19 30 16" stroke={color} strokeWidth="1.6"
+        strokeLinecap="round" fill="none" opacity="0.5"/>
+      {/* بدن */}
+      <path d="M12 38 C12 30 16 26 24 26 C32 26 36 30 36 38"
+        stroke={color} strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+      {/* نماد مشاوره — حباب گفتگو */}
+      <circle cx="36" cy="10" r="6" fill={color} fillOpacity="0.15"
+        stroke={color} strokeWidth="1.5"/>
+      <path d="M33 10 Q36 7 39 10" stroke={color} strokeWidth="1.4"
+        strokeLinecap="round" fill="none"/>
+      <path d="M36 13 L34 16" stroke={color} strokeWidth="1.4"
+        strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+// ── SVG هم‌زیست ───────────────────────────────────────────────────────
+function HamZisteIcon({ size = 48, color = "white" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+      {/* نفر مرکزی */}
+      <circle cx="24" cy="12" r="5.5" stroke={color} strokeWidth="1.8" fill="none"/>
+      <path d="M15 32 C15 25 18.5 22 24 22 C29.5 22 33 25 33 32"
+        stroke={color} strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+      {/* نفر چپ */}
+      <circle cx="10" cy="16" r="4" stroke={color} strokeWidth="1.5"
+        fill="none" opacity="0.7"/>
+      <path d="M4 34 C4 28 7 25.5 10 25.5 C11.5 25.5 13 26 14.5 27.5"
+        stroke={color} strokeWidth="1.5" strokeLinecap="round"
+        fill="none" opacity="0.7"/>
+      {/* نفر راست */}
+      <circle cx="38" cy="16" r="4" stroke={color} strokeWidth="1.5"
+        fill="none" opacity="0.7"/>
+      <path d="M44 34 C44 28 41 25.5 38 25.5 C36.5 25.5 35 26 33.5 27.5"
+        stroke={color} strokeWidth="1.5" strokeLinecap="round"
+        fill="none" opacity="0.7"/>
+      {/* خطوط اتصال گروه */}
+      <path d="M14 20 Q17 18 20 20" stroke={color} strokeWidth="1.3"
+        strokeLinecap="round" fill="none" opacity="0.5" strokeDasharray="2 2"/>
+      <path d="M28 20 Q31 18 34 20" stroke={color} strokeWidth="1.3"
+        strokeLinecap="round" fill="none" opacity="0.5" strokeDasharray="2 2"/>
+      {/* قلب مرکزی گروه */}
+      <path d="M21.5 40 C21.5 38 23 37 24 38 C25 37 26.5 38 26.5 40
+              C26.5 41.5 24 43 24 43 C24 43 21.5 41.5 21.5 40Z"
+        fill={color} opacity="0.6"/>
+    </svg>
+  );
+}
+
+// ── SVG سرگرمی ────────────────────────────────────────────────────────
+function FunIcon({ size = 48, color = "white" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+      <circle cx="24" cy="24" r="18" stroke={color} strokeWidth="1.8" fill="none"/>
+      <path d="M16 28 Q20 34 24 34 Q28 34 32 28" stroke={color}
+        strokeWidth="2" strokeLinecap="round" fill="none"/>
+      <circle cx="18" cy="20" r="2.5" fill={color}/>
+      <circle cx="30" cy="20" r="2.5" fill={color}/>
+      <path d="M10 12 L6 8 M38 12 L42 8" stroke={color}
+        strokeWidth="1.5" strokeLinecap="round" opacity="0.6"/>
+      <circle cx="24" cy="7" r="2" fill={color} opacity="0.6"/>
+    </svg>
+  );
+}
+
+// ── کتگوری‌های سرگرمی ─────────────────────────────────────────────────
+const FUN_CATEGORIES = [
+  { id: "hamneshin",  title: "همنشین",    desc: "دورهمی امن با آدم‌های هم‌فرکانس",    color: "#FF6B00" },
+  { id: "hamsohbat",  title: "هم‌صحبت",   desc: "گفتگوهای عمیق و صمیمی",              color: "#8b5cf6" },
+  { id: "hambazi",    title: "هم‌بازی",   desc: "بردگیم و بازی‌های گروهی",            color: "#3b82f6" },
+  { id: "hampa",      title: "هم‌پا",     desc: "پیاده‌روی و گردش در طبیعت",          color: "#22c55e" },
+  { id: "hamamooz",   title: "هم‌آموز",   desc: "یادگیری مهارت‌های جدید",             color: "#ec4899" },
+  { id: "hamkar",     title: "همکار",     desc: "همکاری در پروژه‌های مشترک",          color: "#f59e0b" },
+  { id: "hamfekr",    title: "هم‌فکر",    desc: "تبادل ایده با ذهن‌های خلاق",         color: "#06b6d4" },
+  { id: "hamteymi",   title: "هم‌تیمی",   desc: "فعالیت‌های ورزشی و تیمی",           color: "#10b981" },
+  { id: "hamghesse",  title: "هم‌قصه",    desc: "خواندن و نوشتن داستان مشترک",        color: "#f97316" },
+];
+
+// ── آیکون هر کتگوری سرگرمی ───────────────────────────────────────────
+const CAT_ICONS: Record<string, React.ReactNode> = {
+  hamneshin: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  ),
+  hamsohbat: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  ),
+  hambazi: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <rect x="2" y="3" width="20" height="14" rx="2"/>
+      <path d="M8 21h8M12 17v4"/>
+      <path d="M9 8h6M12 7v4"/>
+    </svg>
+  ),
+  hampa: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M3 17l4-8 4 4 4-6 4 10"/>
+      <circle cx="12" cy="4" r="1.5"/>
+    </svg>
+  ),
+  hamamooz: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    </svg>
+  ),
+  hamkar: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <rect x="2" y="7" width="20" height="14" rx="2"/>
+      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+      <line x1="12" y1="12" x2="12" y2="16"/>
+      <line x1="10" y1="14" x2="14" y2="14"/>
+    </svg>
+  ),
+  hamfekr: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M12 8v4l3 3"/>
+      <path d="M9 3.5 A9 9 0 0 0 3.5 9"/>
+    </svg>
+  ),
+  hamteymi: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M12 2C8 6 8 18 12 22"/>
+      <path d="M12 2C16 6 16 18 12 22"/>
+      <path d="M2 12h20"/>
+    </svg>
+  ),
+  hamghesse: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+    </svg>
+  ),
+};
+
+type HubKey = "fun" | "therapy";
+
+export default function EventsClient({ initialEvents }: { initialEvents: ApiEvent[] }) {
+  const router = useRouter();
+  const { state } = useApp();
+
+  // sync بعد از هر تست
+  useEffect(() => {
+    try {
+      const ch = new BroadcastChannel("raavi_test_done");
+      ch.onmessage = () => {
+        const tok = localStorage.getItem("token") || "";
+        fetch("https://raaviiplatform.com/api/intelligence/sync", {
+          method: "POST", headers: { Authorization: `Bearer ${tok}` }
+        }).catch(() => {});
+      };
+      return () => ch.close();
+    } catch {}
+  }, []);
+  const [activeHub, setActiveHub] = useState<HubKey>("fun");
+  const [search, setSearch] = useState("");
+  const [mounted, setMounted] = useState(true);
+
+  const userName = state.user?.name?.split(" ")[0] || "دوست راوی";
+
+  const countByCat = useMemo(() =>
+    initialEvents.reduce<Record<string, number>>((acc, ev) => {
+      const c = (ev as any).category || ev.event_type;
+      if (c) acc[c] = (acc[c] || 0) + 1;
+      return acc;
+    }, {}), [initialEvents]);
+
+  const filteredEvents = useMemo(() =>
+    search
+      ? initialEvents.filter(e => e.title?.toLowerCase().includes(search.toLowerCase()))
+      : initialEvents,
+    [initialEvents, search]);
+
+  return (
+    <>
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity:0; transform:translateY(18px); }
+          to   { opacity:1; transform:translateY(0); }
+        }
+        @keyframes shimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position:  200% center; }
+        }
+        @keyframes floatOrb {
+          0%,100% { transform: translateY(0) scale(1); }
+          50%     { transform: translateY(-12px) scale(1.04); }
+        }
+        .card-hover {
+          transition: transform 0.22s cubic-bezier(.34,1.56,.64,1),
+                      box-shadow 0.22s ease, border-color 0.22s ease;
+        }
+        .card-hover:hover { transform: translateY(-4px); }
+        .hub-tab { transition: all 0.25s cubic-bezier(.34,1.56,.64,1); }
+      `}</style>
+
+      <div className="min-h-screen pb-24" dir="rtl"
+        style={{ background: "#f8fafc" }}>
+
+        {/* ── Header ── */}
+        <header className="sticky top-0 z-40"
+          style={{
+            background: "rgba(255,255,255,0.95)",
+            backdropFilter: "blur(20px)",
+            borderBottom: "1px solid rgba(0,0,0,0.06)",
+          }}>
+          <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
+            <button onClick={() => router.push("/")}
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/8 transition-all">
+              <ChevronLeft size={18} />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg,#FF6B00,#f97316)" }}>
+                <Sparkles size={14} className="text-white" />
+              </div>
+              <span className="font-black text-slate-900 text-sm">راوی</span>
+            </div>
+            <div className="mr-auto flex items-center gap-2">
+              <div className="relative">
+                <Search size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                <input value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder="جستجو..."
+                  className="pr-8 pl-3 py-1.5 rounded-xl text-xs text-white outline-none w-36"
+                  style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(255,255,255,0.08)" }} />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="max-w-6xl mx-auto px-4 pt-8">
+
+          {/* ── Hero ── */}
+          <div className="relative rounded-3xl overflow-hidden mb-8 p-8 lg:p-10"
+            style={{
+              background: "linear-gradient(135deg,#0f1e3d 0%,#1a1035 50%,#0d1225 100%)",
+              border: "1px solid rgba(0,0,0,0.07)",
+              animation: "fadeUp 0.5s ease-out both",
+            }}>
+            {/* اوربیتال‌های تزئینی */}
+            <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full pointer-events-none"
+              style={{ background: "radial-gradient(circle,rgba(255,107,0,0.12),transparent 70%)", animation: "floatOrb 6s ease-in-out infinite" }} />
+            <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full pointer-events-none"
+              style={{ background: "radial-gradient(circle,rgba(16,185,129,0.1),transparent 70%)", animation: "floatOrb 8s ease-in-out 2s infinite" }} />
+            <div className="absolute top-0 left-0 right-0 h-px"
+              style={{ background: "linear-gradient(90deg,transparent,rgba(255,107,0,0.4),transparent)" }} />
+
+            <div className="relative z-10">
+              <p className="text-orange-400 text-xs font-black tracking-widest uppercase mb-3">
+                پلتفرم روانشناسی و اجتماعی راوی
+              </p>
+              <h1 className="text-2xl lg:text-4xl font-black text-white leading-tight mb-3">
+                سلام {userName}،
+                <span className="block mt-1"
+                  style={{ background: "linear-gradient(90deg,#FF6B00,#f97316,#fbbf24)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>
+                  چه تجربه‌ای می‌خوای؟
+                </span>
+              </h1>
+              <p className="text-slate-400 text-sm lg:text-base leading-relaxed max-w-xl">
+                دو دنیا برای دو نیاز متفاوت — دورهمی و دوستی یا آرامش و رشد با متخصص.
+              </p>
+            </div>
+          </div>
+
+          {/* ── دو تب اصلی ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8"
+            style={{ animation: "fadeUp 0.5s ease-out 0.1s both" }}>
+
+            {/* سرگرمی */}
+            <button onClick={() => setActiveHub("fun")}
+              className="hub-tab relative rounded-3xl overflow-hidden text-right p-6 lg:p-7"
+              style={{
+                background: activeHub === "fun"
+                  ? "linear-gradient(135deg,#FF6B00,#f97316)"
+                  : "#ffffff",
+                border: `2px solid ${activeHub === "fun" ? "#FF6B00" : "rgba(0,0,0,0.04)"}`,
+                boxShadow: activeHub === "fun" ? "0 16px 48px rgba(255,107,0,0.3)" : "none",
+              }}>
+              {activeHub === "fun" && (
+                <div className="absolute inset-0 pointer-events-none"
+                  style={{ background: "radial-gradient(circle at 20% 50%,rgba(255,255,255,0.1),transparent 60%)" }} />
+              )}
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: activeHub === "fun" ? "rgba(255,255,255,0.15)" : "rgba(255,107,0,0.1)" }}>
+                  <FunIcon size={38} color={activeHub === "fun" ? "white" : "#FF6B00"} />
+                </div>
+                <div className="flex-1 text-right">
+                  <p className="text-[11px] font-bold mb-1"
+                    style={{ color: activeHub === "fun" ? "rgba(255,255,255,0.7)" : "#64748b" }}>
+                    گزینه اول
+                  </p>
+                  <h3 className="text-xl font-black mb-1"
+                    style={{ color: activeHub === "fun" ? "white" : "#f1f5f9" }}>
+                    سرگرمی و دورهمی
+                  </h3>
+                  <p className="text-xs"
+                    style={{ color: activeHub === "fun" ? "rgba(255,255,255,0.8)" : "#475569" }}>
+                    ۹ نوع همنشینی با آدم‌های هم‌فرکانس
+                  </p>
+                </div>
+                {activeHub === "fun" && (
+                  <ArrowLeft size={18} className="text-white opacity-70 flex-shrink-0" />
+                )}
+              </div>
+            </button>
+
+            {/* روانشناس */}
+            <button onClick={() => setActiveHub("therapy")}
+              className="hub-tab relative rounded-3xl overflow-hidden text-right p-6 lg:p-7"
+              style={{
+                background: activeHub === "therapy"
+                  ? "linear-gradient(135deg,#10b981,#0d9488)"
+                  : "#ffffff",
+                border: `2px solid ${activeHub === "therapy" ? "#10b981" : "rgba(0,0,0,0.04)"}`,
+                boxShadow: activeHub === "therapy" ? "0 16px 48px rgba(16,185,129,0.3)" : "none",
+              }}>
+              {activeHub === "therapy" && (
+                <div className="absolute inset-0 pointer-events-none"
+                  style={{ background: "radial-gradient(circle at 20% 50%,rgba(255,255,255,0.08),transparent 60%)" }} />
+              )}
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: activeHub === "therapy" ? "rgba(255,255,255,0.12)" : "rgba(16,185,129,0.1)" }}>
+                  <HamRavanIcon size={38} color={activeHub === "therapy" ? "white" : "#10b981"} />
+                </div>
+                <div className="flex-1 text-right">
+                  <p className="text-[11px] font-bold mb-1"
+                    style={{ color: activeHub === "therapy" ? "rgba(255,255,255,0.7)" : "#64748b" }}>
+                    گزینه دوم
+                  </p>
+                  <h3 className="text-xl font-black mb-1"
+                    style={{ color: activeHub === "therapy" ? "white" : "#f1f5f9" }}>
+                    دوست روانشناس من
+                  </h3>
+                  <p className="text-xs"
+                    style={{ color: activeHub === "therapy" ? "rgba(255,255,255,0.8)" : "#475569" }}>
+                    جلسات تخصصی فردی و گروهی
+                  </p>
+                </div>
+                {activeHub === "therapy" && (
+                  <ArrowLeft size={18} className="text-white opacity-70 flex-shrink-0" />
+                )}
+              </div>
+            </button>
+          </div>
+
+          {/* ── محتوای پویا ── */}
+          {activeHub === "fun" && (
+            <FunHub
+              categories={FUN_CATEGORIES}
+              events={filteredEvents}
+              countByCat={countByCat}
+            />
+          )}
+          {activeHub === "therapy" && <TherapyHub />}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Fun Hub
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function FunHub({ categories, events, countByCat }: {
+  categories: typeof FUN_CATEGORIES;
+  events: ApiEvent[];
+  countByCat: Record<string, number>;
+}) {
+  return (
+    <div style={{ animation: "fadeUp 0.35s ease-out both" }}>
+      <div className="flex items-center gap-2 mb-5">
+        <div className="w-1 h-5 rounded-full" style={{ background: "#FF6B00" }} />
+        <h3 className="text-sm font-black text-white">نوع همنشینی رو انتخاب کن</h3>
+        <span className="text-[10px] px-2 py-0.5 rounded-full text-slate-400 mr-auto"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,0,0,0.07)" }}>
+          {categories.length} نوع
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-8">
+        {categories.map((cat, idx) => {
+          const count = countByCat[cat.id] || 0;
+          const Icon = CAT_ICONS[cat.id];
+          return (
+            <Link key={cat.id} href={`/events/category/${cat.id}`}
+              className="card-hover group rounded-2xl p-4 block"
+              style={{
+                background: "#ffffff",
+                border: "1px solid rgba(0,0,0,0.07)",
+                animation: `fadeUp 0.4s ease-out ${idx * 0.04}s both`,
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.borderColor = cat.color + "50";
+                (e.currentTarget as HTMLElement).style.background = cat.color + "10";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.borderColor = "rgba(0,0,0,0.04)";
+                (e.currentTarget as HTMLElement).style.background = "#ffffff";
+              }}>
+              <div className="flex items-start justify-between mb-3">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center"
+                  style={{ background: cat.color + "15", color: cat.color }}>
+                  {Icon}
+                </div>
+                {count > 0 && (
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full"
+                    style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80" }}>
+                    {count}
+                  </span>
+                )}
+              </div>
+              <h4 className="text-slate-900 font-black text-sm mb-1">{cat.title}</h4>
+              <p className="text-slate-500 text-[10px] leading-relaxed line-clamp-2">{cat.desc}</p>
+            </Link>
+          );
+        })}
+      </div>
+
+      {events.length > 0 && (
+        <>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1 h-5 rounded-full" style={{ background: "#22c55e" }} />
+            <h3 className="text-sm font-black text-white">همنشینی‌های فعال</h3>
+            <span className="text-[10px] text-slate-500 mr-auto">{events.length} مورد</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {events.slice(0, 6).map(ev => <EventCard key={ev.id} ev={ev} />)}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Event Card
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ── کلمات کلیدی Unsplash برای هر کتگوری ───────────────────────────
+const CAT_UNSPLASH: Record<string, string> = {
+  hamneshin:  "friends gathering social",
+  hamsohbat:  "conversation cafe people",
+  hambazi:    "board game playing fun",
+  hampa:      "hiking nature walk",
+  hamamooz:   "learning workshop education",
+  hamkar:     "teamwork collaboration office",
+  hamfekr:    "brainstorm creative ideas",
+  hamteymi:   "sports team activity",
+  hamghesse:  "reading writing storytelling",
+  therapy:    "calm meditation wellness",
+  default:    "event community gathering",
+};
+
+function getUnsplashUrl(cat: string, id: string | number): string {
+  const keyword = CAT_UNSPLASH[cat] || CAT_UNSPLASH.default;
+  return `https://source.unsplash.com/800x400/?${encodeURIComponent(keyword)}&sig=${id}`;
+}
+
+const CAT_CARD_STYLE: Record<string, { grad: string; icon: string; accent: string }> = {
+  hamneshin:  { grad: "135deg,#FF6B00,#f97316",    icon: "👥", accent: "#FF6B00" },
+  hamsohbat:  { grad: "135deg,#8b5cf6,#a78bfa",    icon: "💬", accent: "#8b5cf6" },
+  hambazi:    { grad: "135deg,#3b82f6,#60a5fa",     icon: "🎮", accent: "#3b82f6" },
+  hampa:      { grad: "135deg,#22c55e,#4ade80",     icon: "🥾", accent: "#22c55e" },
+  hamamooz:   { grad: "135deg,#ec4899,#f472b6",     icon: "📚", accent: "#ec4899" },
+  hamkar:     { grad: "135deg,#f59e0b,#fbbf24",     icon: "💼", accent: "#f59e0b" },
+  hamfekr:    { grad: "135deg,#06b6d4,#22d3ee",     icon: "💡", accent: "#06b6d4" },
+  hamteymi:   { grad: "135deg,#10b981,#34d399",     icon: "⚽", accent: "#10b981" },
+  hamghesse:  { grad: "135deg,#f97316,#fb923c",     icon: "✍️", accent: "#f97316" },
+  therapy:    { grad: "135deg,#10b981,#0d9488",     icon: "🧠", accent: "#10b981" },
+  default:    { grad: "135deg,#334155,#475569",     icon: "📅", accent: "#64748b" },
+};
+
+function EventCard({ ev }: { ev: ApiEvent }) {
+  const reserved  = ev.current_bookings || (ev as any).reservedCount || 0;
+  const remaining = ev.capacity - reserved;
+  const full = remaining <= 0;
+  const pct = Math.min(100, Math.round((reserved / Math.max(ev.capacity, 1)) * 100));
+
+  const cat = (ev as any).category || ev.event_type || "default";
+  const style = CAT_CARD_STYLE[cat] || CAT_CARD_STYLE.default;
+  const imgUrl = (ev as any).image_url || (ev as any).imageUrl || getUnsplashUrl(cat, ev.id);
+
+  return (
+    <Link href={`/events/${ev.id}`}
+      className="card-hover group rounded-2xl overflow-hidden block"
+      style={{
+        background: "#ffffff",
+        border: "1px solid rgba(0,0,0,0.07)",
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLElement).style.borderColor = style.accent + "60";
+        (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 32px ${style.accent}20`;
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLElement).style.borderColor = "rgba(0,0,0,0.07)";
+        (e.currentTarget as HTMLElement).style.boxShadow = "none";
+      }}>
+
+      {/* ── تصویر بالای کارت ── */}
+      <div className="relative h-36 w-full overflow-hidden bg-slate-200">
+        <img
+          src={imgUrl}
+          alt={ev.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          loading="lazy"
+          onError={e => {
+            (e.currentTarget as HTMLImageElement).src =
+              `https://source.unsplash.com/600x300/?event,people&sig=${ev.id}`;
+          }}
+        />
+        {/* overlay گرادیانت پایین برای خوانایی */}
+        <div className="absolute inset-0"
+          style={{ background: "linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.45) 100%)" }} />
+        {/* بادج کتگوری */}
+        <div className="absolute top-2.5 right-2.5">
+          <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white"
+            style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(8px)" }}>
+            {cat !== "default" ? cat : ev.event_type || "ایونت"}
+          </span>
+        </div>
+        {/* بادج قیمت */}
+        <div className="absolute bottom-2.5 left-2.5">
+          <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+            style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(8px)", color: "white" }}>
+            {ev.price ? `${Number(ev.price/10).toLocaleString("fa-IR")} ت` : "رایگان"}
+          </span>
+        </div>
+      </div>
+
+      {/* ── محتوای کارت ── */}
+      <div className="p-4">
+      <h4 className="text-slate-900 font-black text-sm mb-3 line-clamp-2 group-hover:text-orange-600 transition-colors">
+        {ev.title}
+      </h4>
+
+      <div className="space-y-1.5 mb-4">
+        {ev.city && (
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+            <MapPin size={11} className="text-slate-600 flex-shrink-0" />
+            {ev.city}
+          </div>
+        )}
+        {(ev.start_date || (ev as any).startDate) && (
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+            <Clock size={11} className="text-slate-600 flex-shrink-0" />
+            {new Date(ev.start_date || (ev as any).startDate).toLocaleDateString("fa-IR")}
+          </div>
+        )}
+      </div>
+
+      {/* نوار ظرفیت */}
+      <div className="mb-3">
+        <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+          <span>ظرفیت</span>
+          <span style={{ color: full ? "#f87171" : "#4ade80" }}>
+            {full ? "تکمیل" : `${remaining} جای خالی`}
+          </span>
+        </div>
+        <div className="h-1.5 rounded-full overflow-hidden"
+          style={{ background: "rgba(0,0,0,0.04)" }}>
+          <div className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${pct}%`,
+              background: full
+                ? "linear-gradient(90deg,#ef4444,#f87171)"
+                : pct > 70
+                ? "linear-gradient(90deg,#f59e0b,#fbbf24)"
+                : "linear-gradient(90deg,#22c55e,#4ade80)",
+            }} />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end">
+        <span className="flex items-center gap-1 text-[10px] font-bold"
+          style={{ color: full ? "#64748b" : "#4ade80" }}>
+          {!full && <CheckCircle size={10} />}
+          {full ? "بسته" : "ثبت‌نام باز"}
+        </span>
+      </div>
+      </div>
+    </Link>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Therapy Hub
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function TherapyHub() {
+  const OPTIONS = [
+    {
+      id: "ham-ravan",
+      title: "هم‌روان",
+      subtitle: "جلسه فردی",
+      desc: "ارتباط با روانشناس برای ارزیابی، تشخیص اولیه و مشاوره فردی در فضایی کاملاً محرمانه.",
+      href: "/dashboard/my-therapist/ham-ravan",
+      color: "#FF6B00",
+      bg: "linear-gradient(135deg,#1a1220 0%,#2d1810 50%,#1a0c05 100%)",
+      features: ["گفت‌وگوی کاملاً محرمانه","تبیین مسئله توسط متخصص","برنامه درمانی شخصی‌سازی‌شده"],
+      Icon: HamRavanIcon,
+    },
+    {
+      id: "ham-ziste",
+      title: "هم‌زیسته",
+      subtitle: "گروه‌درمانی",
+      desc: "گروه‌های حمایتی پیوسته با تجربه مشترک، هدایت‌شده توسط روان‌درمانگر متخصص.",
+      href: "/dashboard/my-therapist/ham-ziste",
+      color: "#10b981",
+      bg: "linear-gradient(135deg,#0f0e2a 0%,#1a1550 50%,#0a0820 100%)",
+      features: ["تجربه مشترک با همدلان","هدایت توسط متخصص","تمرین مهارت‌های ارتباطی"],
+      Icon: HamZisteIcon,
+    },
+  ];
+
+  return (
+    <div style={{ animation: "fadeUp 0.35s ease-out both" }}>
+      <div className="flex items-center gap-2 mb-5">
+        <div className="w-1 h-5 rounded-full" style={{ background: "#10b981" }} />
+        <h3 className="text-sm font-black text-white">نوع جلسه رو انتخاب کن</h3>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+        {OPTIONS.map((opt, idx) => (
+          <Link key={opt.id} href={opt.href}
+            className="card-hover group rounded-3xl overflow-hidden block"
+            style={{
+              border: `1px solid ${opt.color}25`,
+              animation: `fadeUp 0.4s ease-out ${idx * 0.1}s both`,
+            }}>
+
+            {/* بخش بالایی — آیکون */}
+            <div className="relative h-52 overflow-hidden flex items-center justify-center"
+              style={{ background: opt.bg }}>
+              {/* گلو تزئینی */}
+              <div className="absolute inset-0 pointer-events-none"
+                style={{ background: `radial-gradient(circle at 50% 60%, ${opt.color}15, transparent 70%)` }} />
+              <div className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none"
+                style={{ background: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.03), transparent 50%)" }} />
+
+              {/* آیکون اصلی */}
+              <div className="relative z-10 flex flex-col items-center gap-3">
+                <div className="w-24 h-24 rounded-3xl flex items-center justify-center"
+                  style={{
+                    background: `${opt.color}18`,
+                    border: `1px solid ${opt.color}35`,
+                    boxShadow: `0 8px 32px ${opt.color}20`,
+                  }}>
+                  <opt.Icon size={52} color={opt.color} />
+                </div>
+                <div className="px-3 py-1 rounded-full text-[11px] font-black"
+                  style={{
+                    background: `${opt.color}20`,
+                    border: `1px solid ${opt.color}40`,
+                    color: opt.color,
+                  }}>
+                  {opt.subtitle}
+                </div>
+              </div>
+
+              {/* خط درخشان پایین */}
+              <div className="absolute bottom-0 left-0 right-0 h-px"
+                style={{ background: `linear-gradient(90deg,transparent,${opt.color}60,transparent)` }} />
+            </div>
+
+            {/* بخش پایینی — محتوا */}
+            <div className="p-6"
+              style={{ background: "#ffffff" }}>
+              <h4 className="text-slate-900 font-black text-xl mb-2 group-hover:opacity-90 transition-opacity">
+                {opt.title}
+              </h4>
+              <p className="text-slate-400 text-sm leading-relaxed mb-4">{opt.desc}</p>
+
+              <ul className="space-y-2 mb-5">
+                {opt.features.map(f => (
+                  <li key={f} className="flex items-center gap-2.5 text-xs text-slate-400">
+                    <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: `${opt.color}20` }}>
+                      <CheckCircle size={10} style={{ color: opt.color }} />
+                    </div>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="w-full py-3 rounded-2xl text-sm font-black text-white text-center transition-all"
+                style={{
+                  background: `linear-gradient(135deg,${opt.color},${opt.color}cc)`,
+                  boxShadow: `0 4px 20px ${opt.color}35`,
+                }}>
+                مشاهده {opt.title} ←
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* محرمانگی */}
+      <div className="rounded-2xl p-4 flex items-start gap-3"
+        style={{
+          background: "rgba(34,197,94,0.05)",
+          border: "1px solid rgba(34,197,94,0.12)",
+        }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: "rgba(34,197,94,0.1)" }}>
+          <Lock size={15} className="text-green-400" />
+        </div>
+        <div>
+          <p className="text-slate-900 font-black text-sm mb-0.5">محرمانگی کامل تضمین می‌شود</p>
+          <p className="text-slate-500 text-xs leading-relaxed">
+            تمام جلسات تحت اصول اخلاق حرفه‌ای روانشناسی برگزار می‌شود.
+            هیچ اطلاعاتی از جلسه شما حتی با تیم راوی به اشتراک گذاشته نمی‌شود.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
